@@ -10,7 +10,8 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Configure Tesseract path if required
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+pytesseract.pytesseract.tesseract_cmd = r"/usr/bin/tesseract"
+
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
