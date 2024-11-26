@@ -3,12 +3,6 @@ services:
     name: your-app-name
     runtime: python
     buildCommand: |
-      apt-get update
-      apt-get install -y tesseract-ocr
-      tesseract --version  # Add this to confirm installation
       pip install -r requirements.txt
+      apt-get update && apt-get install -y tesseract-ocr
     startCommand: python app.py
-    envVars:
-      - key: TESSERACT_PATH
-        value: /usr/bin/tesseract
-
