@@ -14,6 +14,7 @@ pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
+    urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({'http': 'proxy.server:3128'})))
     try:
         data = request.json
         # Check if an image file or URL is provided in the request
