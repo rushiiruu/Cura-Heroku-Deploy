@@ -5,12 +5,19 @@ import io
 import requests
 import re  # For tokenization
 from flask_cors import CORS
+import os
+import shutil
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Configure Tesseract path if required
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# Dynamically detect or configure Tesseract path
+tesseract_path = shutil.which("tesseract")
+if tesseract_path:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+else:
+    # If not found, use an environment variable as a fallback
+    pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_PATH", "/usr/bin/tesseract")
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
