@@ -8,8 +8,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Configure Tesseract path if required
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 
 def preprocess_image(image):
     """
@@ -80,5 +79,4 @@ def process_image():
     except Exception as e:
         return jsonify({'error': str(e), 'type': str(type(e))}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+
