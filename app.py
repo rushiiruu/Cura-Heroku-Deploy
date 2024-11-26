@@ -5,12 +5,11 @@ import io
 import re
 from flask_cors import CORS
 
-# Uncomment and set path if needed on Windows
-# import pytesseract
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
 app = Flask(__name__)
-CORS(app, resources={r"/process-image": {"origins": "*"}})
+CORS(app)  # Enable CORS for all routes
+
+# Configure Tesseract path if required
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 def preprocess_image(image):
     """
@@ -35,7 +34,7 @@ def preprocess_image(image):
     
     # Increase image size if too small
     if image.width < 1000 or image.height < 1000:
-        ratio = max(1000 / image.width, 1000 / image.height)
+        ratio = max(1000/image.width, 1000/image.height)
         new_size = (int(image.width * ratio), int(image.height * ratio))
         image = image.resize(new_size, Image.Resampling.LANCZOS)
     
@@ -52,16 +51,8 @@ def process_image():
         if image_file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
         
-        # Print file details for debugging
-        print(f"Received file: {image_file.filename}")
-        print(f"Content type: {image_file.content_type}")
-        
         # Read and process the image
         img = Image.open(io.BytesIO(image_file.read()))
-        
-        # Print image details
-        print(f"Image mode: {img.mode}")
-        print(f"Image size: {img.size}")
         
         # Apply image preprocessing
         processed_img = preprocess_image(img)
@@ -70,16 +61,12 @@ def process_image():
         custom_config = r'--oem 3 --psm 6'  # Use LSTM OCR Engine Mode with automatic page segmentation
         extracted_text = pytesseract.image_to_string(processed_img, config=custom_config)
         
-        print(f"Extracted text: {extracted_text}")
-        
         # Tokenize text
         # Split into words, convert to lowercase, and remove special characters
         tokens = re.findall(r'\b\w+\b', extracted_text.lower())
         
         # Remove very short tokens (likely noise)
         tokens = [token for token in tokens if len(token) > 1]
-        
-        print(f"Tokens: {tokens}")
         
         # Create response with both raw text and processed tokens
         response = {
@@ -89,20 +76,6 @@ def process_image():
         }
         
         return jsonify(response), 200
+
     except Exception as e:
-        # Log the full traceback
-        import traceback
-        print(f"Error processing image: {e}")
-        traceback.print_exc()
-        return jsonify({
-            'error': str(e), 
-            'type': str(type(e)),
-            'traceback': traceback.format_exc()
-        }), 500
-
-@app.route('/test')
-def get_test():
-    return 'HELLO'
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+        return jsonify({'error': str(e), 'type': str(type(e))}), 500
