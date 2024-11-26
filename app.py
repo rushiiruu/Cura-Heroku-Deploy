@@ -2,46 +2,84 @@ from flask import Flask, request, jsonify
 from PIL import Image, ImageEnhance, ImageFilter
 import pytesseract
 import io
-import requests
-import re  # For tokenization
+import re
 from flask_cors import CORS
 
-app = Flask(__name__)  # Corrected the Flask instance initialization
+app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Configure Tesseract path if required
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+
+
+def preprocess_image(image):
+    """
+    Apply various image processing techniques to improve OCR accuracy
+    """
+    # Convert to RGB if image is in RGBA mode
+    if image.mode == 'RGBA':
+        image = image.convert('RGB')
+    
+    # Convert to grayscale
+    image = image.convert('L')
+    
+    # Apply noise reduction
+    image = image.filter(ImageFilter.MedianFilter(3))
+    
+    # Enhance contrast
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(2)
+    
+    # Apply sharpening
+    image = image.filter(ImageFilter.SHARPEN)
+    
+    # Increase image size if too small
+    if image.width < 1000 or image.height < 1000:
+        ratio = max(1000/image.width, 1000/image.height)
+        new_size = (int(image.width * ratio), int(image.height * ratio))
+        image = image.resize(new_size, Image.Resampling.LANCZOS)
+    
+    return image
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
-    urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({'http': 'proxy.server:3128'})))
     try:
-        data = request.json
-        # Check if an image file or URL is provided in the request
-        image_url = data.get("image")
-        if image_url:
-            response = requests.get(image_url)
-            if response.status_code != 200:
-                return jsonify({'error': 'Unable to fetch image from URL'}), 400
-            img = Image.open(io.BytesIO(response.content))
-        else:
-            return jsonify({'error': 'No image URL provided'}), 400
+        # Check if image file is in request
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        # Read and process the image
+        img = Image.open(io.BytesIO(image_file.read()))
+        
+        # Apply image preprocessing
+        processed_img = preprocess_image(img)
+        
+        # Perform OCR with custom configuration
+        custom_config = r'--oem 3 --psm 6'  # Use LSTM OCR Engine Mode with automatic page segmentation
+        extracted_text = pytesseract.image_to_string(processed_img, config=custom_config)
+        
+        # Tokenize text
+        # Split into words, convert to lowercase, and remove special characters
+        tokens = re.findall(r'\b\w+\b', extracted_text.lower())
+        
+        # Remove very short tokens (likely noise)
+        tokens = [token for token in tokens if len(token) > 1]
+        
+        # Create response with both raw text and processed tokens
+        response = {
+            'raw_text': extracted_text,
+            'tokens': tokens,
+            'token_count': len(tokens)
+        }
+        
+        return jsonify(response), 200
 
-        # Apply image processing
-        img = img.convert('L')  # Convert to grayscale
-        img = img.filter(ImageFilter.MedianFilter())  # Apply median filter
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(2)  # Enhance contrast
-
-        # Perform OCR
-        extracted_text = pytesseract.image_to_string(img)
-
-        # Tokenize text: Split into words (ignores punctuation and splits on spaces)
-        tokens = re.findall(r'\b\w+\b', extracted_text)
-
-        return jsonify({'text': extracted_text, 'tokens': tokens}), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e), 'type': str(type(e))}), 500
+
+
 
 @app.route('/test')
 def test():
