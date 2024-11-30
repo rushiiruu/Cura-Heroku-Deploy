@@ -4,11 +4,14 @@ import pytesseract
 import io
 import re
 from flask_cors import CORS
+import logging
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+app.logger.info('App is starting...')
 
 def preprocess_image(image):
     """
@@ -33,7 +36,7 @@ def preprocess_image(image):
     
     # Increase image size if too small
     if image.width < 1000 or image.height < 1000:
-        ratio = max(1000/image.width, 1000/image.height)
+        ratio = max(1000 / image.width, 1000 / image.height)
         new_size = (int(image.width * ratio), int(image.height * ratio))
         image = image.resize(new_size, Image.Resampling.LANCZOS)
     
@@ -77,9 +80,8 @@ def process_image():
         return jsonify(response), 200
 
     except Exception as e:
+        app.logger.error(f"Error processing image: {e}")
         return jsonify({'error': str(e), 'type': str(type(e))}), 500
-
-
 
 @app.route('/test')
 def test():
